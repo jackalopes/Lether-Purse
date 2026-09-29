@@ -425,6 +425,22 @@
     .lightbox-prev, .lightbox-next { width: 38px; height: 38px; font-size: 16px; }
     .lightbox { padding: 56px 16px; }
   }
+
+  @media (max-width: 900px) {
+    .wrap { padding: 40px 14px 80px; }
+    .grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .card { border-radius: 14px; }
+    .card-body { padding: 12px 12px 14px; gap: 8px; }
+    .badge { width: 28px; height: 28px; font-size: 13px; }
+    .colorname { font-size: 14.5px; }
+    .sourceline { font-size: 9px; }
+    .fav-btn { width: 28px; height: 28px; font-size: 14px; }
+    .note { font-size: 12px; line-height: 1.45; }
+    .specs { font-size: 9.5px; }
+    .pill { font-size: 9px; padding: 2px 6px; }
+    .pick-note label { font-size: 9px; }
+    .pick-note input { font-size: 11.5px; padding: 6px 8px; }
+  }
 </style>
 
 <div class="wrap">
@@ -769,6 +785,35 @@
     state[letter] = { name: nameEl ? nameEl.textContent : letter, favorited: false, note: '' };
   });
 
+  // ---- Remember picks in this browser, so nothing is lost on a refresh or a later visit ----
+  var STORAGE_KEY = 'leatherPickerPicks_v1';
+
+  function loadSaved() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      var saved = JSON.parse(raw);
+      Object.keys(saved).forEach(function (L) {
+        if (state[L]) {
+          state[L].favorited = !!saved[L].favorited;
+          state[L].note = saved[L].note || '';
+        }
+      });
+    } catch (e) { /* storage unavailable — just start fresh */ }
+  }
+
+  function saveState() {
+    try {
+      var toSave = {};
+      Object.keys(state).forEach(function (L) {
+        toSave[L] = { favorited: state[L].favorited, note: state[L].note };
+      });
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+    } catch (e) { /* storage unavailable — picks just won't persist */ }
+  }
+
+  loadSaved();
+
   var pickCountEl = document.getElementById('pickCount');
   var emailBtn = document.getElementById('emailBtn');
   var copyBtn = document.getElementById('copyBtn');
@@ -815,17 +860,27 @@
     var btn = card.querySelector('.fav-btn');
     var noteInput = card.querySelector('.pick-note input');
 
+    if (state[letter].favorited) {
+      btn.setAttribute('aria-pressed', 'true');
+      card.classList.add('is-picked');
+    }
+    if (noteInput && state[letter].note) {
+      noteInput.value = state[letter].note;
+    }
+
     btn.addEventListener('click', function () {
       var pressed = btn.getAttribute('aria-pressed') === 'true';
       state[letter].favorited = !pressed;
       btn.setAttribute('aria-pressed', String(!pressed));
       card.classList.toggle('is-picked', !pressed);
+      saveState();
       refresh();
     });
 
     if (noteInput) {
       noteInput.addEventListener('input', function () {
         state[letter].note = noteInput.value.trim();
+        saveState();
         refresh();
       });
     }
